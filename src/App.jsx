@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback, useRef } from 'react'
 import { useConfig, useElementData, useVariable, useActionTrigger } from '@sigmacomputing/plugin'
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -131,6 +131,8 @@ export default function App() {
   const [, setSelectedDate] = useVariable('selectedDate')
   const triggerDayClick     = useActionTrigger('onDayClick')
 
+  const rootRef = useRef(null)
+
   const today = new Date()
   const [viewYear,  setViewYear]  = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -243,18 +245,28 @@ export default function App() {
     const key   = cellKey(cell.date)
     const value = dayMap.get(key)
     if (value == null) return
-    const details = detailMap.get(key) ?? []
-    const rect  = e.currentTarget.getBoundingClientRect()
+    const details  = detailMap.get(key) ?? []
+    const cellRect = e.currentTarget.getBoundingClientRect()
+    const rootRect = rootRef.current?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+
+    // All coords are relative to .hc-root so position:absolute stays inside it
+    const cW = rootRect.width
+    const cH = rootRect.height
+    const cLeft  = cellRect.left  - rootRect.left
+    const cRight = cellRect.right - rootRect.left
+    const cTop   = cellRect.top   - rootRect.top
+
     const tipW  = 220
     const shown = Math.min(details.length, 12)
-    const tipH  = 80 + (shown > 0 ? 10 + shown * 18 + (details.length > 12 ? 20 : 0) : 0)
+    // Estimate rendered height: base + list header + items + overflow line
+    const tipH  = 82 + (shown > 0 ? 12 + shown * 19 + (details.length > 12 ? 20 : 0) : 0)
 
-    // prefer right of cell; fall back to left; always clamp within viewport
-    let x = rect.right + 10 + tipW <= window.innerWidth - 5 ? rect.right + 10 : rect.left - tipW - 10
-    x = Math.max(5, Math.min(x, window.innerWidth - tipW - 5))
+    // Prefer right of cell; fall back to left; hard-clamp to container
+    let x = cRight + 8 + tipW <= cW - 4 ? cRight + 8 : cLeft - tipW - 8
+    x = Math.max(4, Math.min(x, cW - tipW - 4))
 
-    let y = rect.top
-    y = Math.max(5, Math.min(y, window.innerHeight - tipH - 5))
+    let y = cTop
+    y = Math.max(4, Math.min(y, cH - tipH - 4))
 
     setTooltip({ key, value, details, x, y })
   }, [dayMap, detailMap])
@@ -262,7 +274,7 @@ export default function App() {
   const isConfigured = !!(sourceId && dateCol && valueCol)
 
   return (
-    <div className="hc-root" onMouseLeave={() => setTooltip(null)}>
+    <div className="hc-root" ref={rootRef} onMouseLeave={() => setTooltip(null)}>
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="hc-header">
         <div className="hc-title">{title}</div>

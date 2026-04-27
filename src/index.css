@@ -176,7 +176,7 @@ html, body, #root {
 /* ── Tooltip ───────────────────────────────────────────────────────────── */
 
 .hc-tooltip {
-  position: fixed;
+  position: absolute;
   z-index: 9999;
   width: 220px;
   background: #1f2937;
@@ -216,8 +216,6 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-height: 180px;
-  overflow: hidden;
 }
 
 .hc-tooltip-item {
