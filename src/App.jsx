@@ -246,8 +246,16 @@ export default function App() {
     const details = detailMap.get(key) ?? []
     const rect  = e.currentTarget.getBoundingClientRect()
     const tipW  = 220
-    const x = rect.right + 10 + tipW < window.innerWidth ? rect.right + 10 : rect.left - tipW - 10
-    const y = Math.min(rect.top, window.innerHeight - 280)
+    const shown = Math.min(details.length, 12)
+    const tipH  = 80 + (shown > 0 ? 10 + shown * 18 + (details.length > 12 ? 20 : 0) : 0)
+
+    // prefer right of cell; fall back to left; always clamp within viewport
+    let x = rect.right + 10 + tipW <= window.innerWidth - 5 ? rect.right + 10 : rect.left - tipW - 10
+    x = Math.max(5, Math.min(x, window.innerWidth - tipW - 5))
+
+    let y = rect.top
+    y = Math.max(5, Math.min(y, window.innerHeight - tipH - 5))
+
     setTooltip({ key, value, details, x, y })
   }, [dayMap, detailMap])
 
