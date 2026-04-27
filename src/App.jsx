@@ -181,19 +181,40 @@ export default function App() {
 
     const groups = new Map()
     const isCount = aggMethod === 'Count'
+    let hasNumericValues = false
+
     for (let i = 0; i < dates.length; i++) {
       const key = parseDateKey(dates[i])
       if (!key) continue
-      // Count aggregation works with any column type — it just counts rows.
-      // All other methods require a numeric value; skip NaN rows.
-      const v = isCount ? 1 : Number(values[i])
-      if (!isCount && isNaN(v)) continue
       if (!groups.has(key)) groups.set(key, [])
-      groups.get(key).push(v)
+
+      if (isCount) {
+        groups.get(key).push(1)
+      } else {
+        const v = Number(values[i])
+        if (!isNaN(v)) {
+          hasNumericValues = true
+          groups.get(key).push(v)
+        }
+      }
     }
 
+    // If the chosen aggregation requires numbers but the column is non-numeric
+    // (e.g. Sum on a text Order Id column), silently fall back to counting rows
+    // so the calendar shows something useful rather than all zeros.
+    if (!isCount && !hasNumericValues) {
+      groups.clear()
+      for (let i = 0; i < dates.length; i++) {
+        const key = parseDateKey(dates[i])
+        if (!key) continue
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key).push(1)
+      }
+    }
+
+    const effectiveAgg = (!isCount && !hasNumericValues) ? AGG_FNS.Count : aggFn
     for (const [key, vals] of groups) {
-      map.set(key, aggFn(vals))
+      map.set(key, effectiveAgg(vals))
     }
 
     return map
