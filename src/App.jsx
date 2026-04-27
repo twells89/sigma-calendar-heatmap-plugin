@@ -236,9 +236,9 @@ export default function App() {
   const handleDayClick = useCallback((cell) => {
     if (!cell.inMonth) return
     const key = cellKey(cell.date)
-    setSelectedDate(key)
-    triggerDayClick()
-  }, [setSelectedDate, triggerDayClick])
+    if (config?.selectedDate) setSelectedDate(key)
+    if (config?.onDayClick)   triggerDayClick()
+  }, [config, setSelectedDate, triggerDayClick])
 
   const handleMouseEnter = useCallback((cell, e) => {
     if (!cell.inMonth) return
