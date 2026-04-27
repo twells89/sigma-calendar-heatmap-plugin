@@ -33,19 +33,43 @@ const AGG_FNS = {
 
 function parseDateKey(val) {
   if (val == null || val === '') return null
-  let d
-  if (val instanceof Date) {
-    d = val
-  } else {
+
+  // ISO date-only string (YYYY-MM-DD): return components directly.
+  // Do NOT run through new Date() — browsers parse date-only ISO strings as
+  // UTC midnight, so local date extraction would shift the day in UTC- timezones.
+  if (typeof val === 'string' || typeof val === 'number') {
     const str = String(val).trim()
-    if (/^\d{10}$/.test(str))      d = new Date(parseInt(str, 10) * 1000)
-    else if (/^\d{13}$/.test(str)) d = new Date(parseInt(str, 10))
-    else                            d = new Date(str)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+    if (/^\d{10}$/.test(str)) {
+      const d = new Date(parseInt(str, 10) * 1000)
+      if (isNaN(d.getTime())) return null
+      return utcKey(d)
+    }
+    if (/^\d{13}$/.test(str)) {
+      const d = new Date(parseInt(str, 10))
+      if (isNaN(d.getTime())) return null
+      return utcKey(d)
+    }
+    const d = new Date(str)
+    if (isNaN(d.getTime())) return null
+    // For ISO datetime strings Sigma sends dates as UTC midnight — use UTC components
+    return utcKey(d)
   }
-  if (isNaN(d.getTime())) return null
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return null
+    // Sigma stores dates as UTC midnight — extract UTC date to get the correct calendar day
+    return utcKey(val)
+  }
+
+  return null
+}
+
+// Extract a YYYY-MM-DD key using UTC components (matches Sigma's UTC-midnight storage)
+function utcKey(d) {
+  const y   = d.getUTCFullYear()
+  const m   = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 
@@ -156,11 +180,14 @@ export default function App() {
     const aggFn  = AGG_FNS[aggMethod] || AGG_FNS.Sum
 
     const groups = new Map()
+    const isCount = aggMethod === 'Count'
     for (let i = 0; i < dates.length; i++) {
       const key = parseDateKey(dates[i])
       if (!key) continue
-      const v = Number(values[i])
-      if (isNaN(v)) continue
+      // Count aggregation works with any column type — it just counts rows.
+      // All other methods require a numeric value; skip NaN rows.
+      const v = isCount ? 1 : Number(values[i])
+      if (!isCount && isNaN(v)) continue
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(v)
     }
